@@ -437,16 +437,18 @@ def make_cnn_architecture (data_set,
 
     ##  Feature extraction 부분에 해당하는 convolutional layer, pooling layer의 구조 형성 (fully-connected layer 이전까지)
     print('Feature extraction 부분의 구조를 생성하고 있습니다.')
-    all_featuremaps, input_data = make_feature_extraction_part(input_data, weights_dic, biases_dic, weight_names_list,
+    all_featuremaps, py_x = make_feature_extraction_part(input_data, weights_dic, biases_dic, weight_names_list,
                                                                conv_deep, conv_width, pool_location, pool_size, pool_str,
                                                                all_featuremaps,
                                                                conv_dropout)
 
+    ####### RNN 붙일꺼라서 classification 필요없음 ###########
     ##  Classification 부분에 해당하는 fully-connected layer, output layer의 구조 형성
-    print('Classification 부분의 구조를 생성하고 있습니다.')
-    all_featuremaps, py_x = make_classification_part(input_data, weights_dic, biases_dic, weight_names_list,
-                                                     all_featuremaps,
-                                                     fc_layers_num, fc_input_len, fc_name_start_point, fc_dropout)
+    # print('Classification 부분의 구조를 생성하고 있습니다.')
+    # all_featuremaps, py_x = make_classification_part(input_data, weights_dic, biases_dic, weight_names_list,
+    #                                                  all_featuremaps,
+    #                                                  fc_layers_num, fc_input_len, fc_name_start_point, fc_dropout)
+
 
     ##  모든 feature maps이 저장된 딕셔너리와 최종 output layer의 값을 리턴
     return  all_featuremaps, py_x
@@ -479,16 +481,6 @@ def cnn_training (train_input_data,
     trX = trX.reshape(-1, 1, ncol_data, 1)
     #   Train용 label을 설정
     trY = label_of_train
-
-
-
-
-
-
-
-
-
-
 
 
 
