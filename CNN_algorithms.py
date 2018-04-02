@@ -153,7 +153,7 @@ def make_wei_bias (conv_deep, conv_width, kernel_size, kernel_num, pool_num, poo
             #   해당 kernel의 이름을 모든 weight(or bias) 이름을 기록해둘 list에 추가
             weight_names_list.append(now_kernel_name)
             #   해당 kernel의 초기화된 weight를 모든 weight의 값을 저장할 딕셔너리에 추가
-            weights_dic[now_kernel_name] = init_weight([1, kernel_size_now_layer[j], kernel_nums_now_layer[0], kernel_nums_now_layer[j+1]], weight_init_type)
+            weights_dic[now_kernel_name] = init_weight([kernel_size_now_layer[j], kernel_nums_now_layer[0], kernel_nums_now_layer[j+1]], weight_init_type)
             #   해당 kernel의 초기화된 bias를 모든 bias의 값을 저장할 딕셔너리에 추가
             biases_dic[now_kernel_name] = init_bias([kernel_nums_now_layer[j+1]], bias_init_type)
 
@@ -265,8 +265,8 @@ def make_feature_extraction_part (CNN_input_data, dic_weight, dic_bias, list_wei
 
             ##  해당 kernel의 convolutional layer 부분
             #   Convolution
-            after_conv = tf.nn.conv2d(now_layer_input, dic_weight[list_weight_name[(last_choice_name + j)]],
-                                      strides=[1, 1, 1, 1], padding='SAME')
+            after_conv = tf.nn.conv1d(now_layer_input, dic_weight[list_weight_name[(last_choice_name + j)]],
+                                      stride=1, padding='SAME')
             #   해당 kernel의 feature map 이름을 지정
             now_featuremap_name = list_weight_name[(last_choice_name + j)] + '_conv'
             #   해당 kernel을 통해 만들어진 feature map을 설장한 이름으로 전체 feature maps을 저장할 딕셔너리에 저장
@@ -285,7 +285,7 @@ def make_feature_extraction_part (CNN_input_data, dic_weight, dic_bias, list_wei
 
         ##  한 layer 안에 있는 다른 kernel로 부터 나온 feature maps을 depth 방향으로 합침.
         #   tf.concat을 이용하여 합침.
-        inception_output = tf.concat(featuremaps_list_per_inception, 3)
+        inception_output = tf.concat(featuremaps_list_per_inception, 2)
         #   해당 inception의 이름을 지정
         now_featuremap_name = 'Inception_' + str(i+1)
         #   합쳐진 feature map을 설정한 이름으로 전체 feature maps을 저장할 딕셔너리에 저장
@@ -297,7 +297,7 @@ def make_feature_extraction_part (CNN_input_data, dic_weight, dic_bias, list_wei
         if (pooling_loc[pool_count] == (i+1)) and (len(pooling_loc) > pool_count) :
 
             #   Max pooling 방식
-            after_pool = tf.nn.max_pool(inception_output, ksize=[1, 1, pooling_size, 1], strides=[1, 1, pooling_stride, 1], padding='VALID')
+            after_pool = tf.layers.max_pooling1d(inception_output, pool_size=pooling_size, strides=pooling_stride, padding='VALID')
             #   해당 pooling layer의 이름ㅇ르 지정
             now_featuremap_name = 'Pooling_' + str(i+1)
             #   Pooling을 통해 줄어든 feature map을 설정한 이름으로 전체 feature maps을 저장할 딕셔너리에 저장

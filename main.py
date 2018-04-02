@@ -98,7 +98,7 @@ fullyconnected_layer_unit = [1024, 1024]
 
 ##  나중에 training와 validation, test시 data와 label 입력을 위해 data type과 size 먼저 지정 (구체적인 값은 나중에 지정)
 #   Data를 입력할 변수의 data type과 size 지정 (None은 batch size에 따라 바뀌므로 특정한 값으로 지정하지 않은 것)
-X = tf.placeholder("float", [None, 1, seq_length, EMG_ch_num])
+X = tf.placeholder("float", [None, seq_length, EMG_ch_num])
 #   Label을 입력할 변수의 label type과 size 지정 (None은 batch size에 따라 바뀌므로 특정한 값으로 지정하지 않은 것)
 Y = tf.placeholder("float", [None, class_numer])
 
@@ -107,8 +107,6 @@ Y = tf.placeholder("float", [None, class_numer])
 p_keep_conv = tf.placeholder("float")
 #   Fully connected layer에 적용할 dropout type 지정
 p_keep_hidden = tf.placeholder("float")
-
-
 
 
 ### Data 불러오기
@@ -163,7 +161,7 @@ print('첫번째 마커, 두번째 피실험자 : ')
 print(re_file_names[15:30])
 
 
-### 이번 deep learning에서 사용할 피실험자들 data 선택
+### 이번 deep learning에서 사용할 피실험자들 data 선택.
 #   화면상 구분을 위해 ('=======================' 이걸 긋는 효과)
 print('=' * 100)
 print('이번 deep learning에서 사용할 피실험자들 data를 선택하는 부분')
@@ -195,7 +193,7 @@ print('편집된 data들 중 1번째 마커, 1번재 피실험자의 data들 길
 for i in range(15) :
     print(adjusted_length[chosen_file_names[i]])
 
-
+'''
 ### Target을 classification의 label로 만드는 부분 (Classification을 위한 부분)
 #   화면상 구분을 위해 ('=======================' 이걸 긋는 효과)
 print('=' * 100)
@@ -223,6 +221,7 @@ print(chosen_file_names[0], ' 라는 key 안에 든 대표값 배열의 shape은
 print(chosen_file_names[0], ' 라는 key 안에 든 대표값 배열은 : ')
 print(adjusted_target_set[chosen_file_names[0]][0:10])
 print(all_label_value[chosen_file_names[0]][0:10])
+'''
 
 '''
 ##  원래 값과 label을 다시 값으로 바꾼 대표값 사이의 차이 정도를 보기 위해 그래프 출력
@@ -249,24 +248,24 @@ print(test_file_names)
 #   화면상 구분을 위해 ('=======================' 이걸 긋는 효과)
 print('=' * 100)
 print('위에서 나눈 data 이름을 바탕으로 실제 train set data와 test set data를 만드는 부분')
-train_data_set, train_label_set, test_data_set, test_label_set = make_train_test_set(adjusted_input_set, all_label, train_file_names, test_file_names)
+train_data_set, train_target_set, test_data_set, test_target_set = make_train_test_set(adjusted_input_set, adjusted_target_set, train_file_names, test_file_names)
 #train_data_set, train_target_set, test_data_set, test_target_set = make_train_test_set(adjusted_input_set, adjusted_target_set, train_file_names, test_file_names)
 print('Train data의 type은 : ', type(train_data_set))
 print('Train data의 크기는 : ', (train_data_set).shape)
 print('Train data는 : ')
 print(train_data_set)
-print('Train target의 type은 : ', type(train_label_set))
-print('Train target의 크기는 : ', (train_label_set).shape)
+print('Train target의 type은 : ', type(train_target_set))
+print('Train target의 크기는 : ', (train_target_set).shape)
 print('Train target은 : ')
-print(train_label_set[0])
+print(train_target_set[0])
 print('Test data의 type은 : ', type(test_data_set))
 print('Test data의 크기는 : ', (test_data_set).shape)
 print('Test data는 : ')
 print(test_data_set)
-print('Test target의 type은 : ', type(test_label_set))
-print('Test target의 크기는 : ', (test_label_set).shape)
+print('Test target의 type은 : ', type(test_target_set))
+print('Test target의 크기는 : ', (test_target_set).shape)
 print('Test target은 : ')
-print(test_label_set[0])
+print(test_target_set[0])
 
 
 #   화면상 구분을 위해 ('=======================' 이걸 긋는 효과)
@@ -331,6 +330,6 @@ print(output_value)
 
 
 
-
+################# RNN 코드 #######################
 
 
