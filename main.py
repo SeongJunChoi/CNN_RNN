@@ -8,6 +8,8 @@
 #   2018.03.26.월요일 : Marker 값을 1000개의 구간으로 나눠 label을 만드는 것까지 완성
 #                      다시 값(대표값)으로 바꿨을 때 거의 차이가 없었음.
 #   2018.03.28.수요일 : GPU설치로 tensorflow를 gpu로 돌리는 것으로 체인지!
+#
+#   2018.04.03 월요일 : CNN 뒤에다가 RNN(LSTM) 추가
 
 #####------------------------------------------------
 
@@ -17,9 +19,18 @@ from data_preparation import *
 from CNN_algorithms import *
 
 # 이미지를 출력하거나 plot을 그리기 위해
-#import matplotlib.pyplot as plt
+import os
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
+import random
+
+# 그래프 사이즈 조정
+plt.rcParams["figure.figsize"] = (60,30)
+plt.rcParams['lines.linewidth'] = 2
+plt.rcParams['lines.color'] = 'r'
+plt.rcParams['axes.grid'] = True
+
 
 ### 사용할 고정 변수 입력
 ##  Deep learning을 위한 data를 준비하면서 필요한 변수들
@@ -95,12 +106,35 @@ fullyconnected_layer_number = 2
 #
 fullyconnected_layer_unit = [1024, 1024]
 
+conv_dropout_ratio = 1.0
+
+
+## RNN 돌리기 위한 변수들
+#
+input_data_column_cnt = 4  # 입력데이터의 컬럼 개수(Variable 개수)
+output_data_column_cnt = 1 # 결과데이터의 컬럼 개수
+rnn_cell_hidden_dim = 10    # 각 셀의 (hidden)출력 크기
+forget_bias = 1.0          # 망각편향(기본값 1.0)
+num_stacked_layers = 1     # stacked LSTM layers 개수
+keep_prob = 1.0            # dropout할 때 keep할 비율
+epoch_num = 100     # 에폭 횟수(학습용전체데이터를 몇 회 반복해서 학습할 것인가 입력)
+learning_rate = 0.01       # 학습률
+#
+
 
 ##  나중에 training와 validation, test시 data와 label 입력을 위해 data type과 size 먼저 지정 (구체적인 값은 나중에 지정)
 #   Data를 입력할 변수의 data type과 size 지정 (None은 batch size에 따라 바뀌므로 특정한 값으로 지정하지 않은 것)
 X = tf.placeholder("float", [None, seq_length, EMG_ch_num])
 #   Label을 입력할 변수의 label type과 size 지정 (None은 batch size에 따라 바뀌므로 특정한 값으로 지정하지 않은 것)
 Y = tf.placeholder("float", [None, class_numer])
+# RNN target용
+Y_rnn = tf.placeholder(tf.float32, [None, output_data_column_cnt])
+#
+# 검증용 측정지표를 산출하기 위한 targets, predictions를 생성한다
+targets = tf.placeholder(tf.float32, [None, output_data_column_cnt])
+#
+predictions = tf.placeholder(tf.float32, [None, output_data_column_cnt])
+
 
 ##  Dropout을 사용하기 위해 dropout의 변수 type을 설정 (역시 구체적인 값은 나중에 지정)
 #   Convolutional layer(ReLU, Pooling 다 포함한 용어)에 적용할 dropout type 지정
@@ -329,7 +363,106 @@ print('Output layer의 값은 : ')
 print(output_value)
 
 
+########################################### RNN model ####################################
+# 모델(LSTM 네트워크) 생성
+def lstm_cell():
+    # LSTM셀을 생성
+    # num_units: 각 Cell 출력 크기
+    # forget_bias:  to the biases of the forget gate
+    #              (default: 1)  in order to reduce the scale of forgetting in the beginning of the training.
+    # state_is_tuple: True ==> accepted and returned states are 2-tuples of the c_state and m_state.
+    # state_is_tuple: False ==> they are concatenated along the column axis.
+    cell = tf.contrib.rnn.BasicLSTMCell(num_units=rnn_cell_hidden_dim,
+                                        forget_bias=forget_bias, state_is_tuple=True, activation=tf.nn.softsign)
+    if keep_prob < 1.0:
+        cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=keep_prob)
+    return cell
 
-################# RNN 코드 #######################
+# num_stacked_layers개의 층으로 쌓인 Stacked RNNs 생성
+stackedRNNs = [lstm_cell() for _ in range(num_stacked_layers)]
+multi_cells = tf.contrib.rnn.MultiRNNCell(stackedRNNs, state_is_tuple=True) if num_stacked_layers > 1 else lstm_cell()
 
+# LSTM Cell들을 연결
+hypothesis, _states = tf.nn.dynamic_rnn(multi_cells, output_value, dtype=tf.float32)
+print("hypothesis: ", hypothesis)
+
+# LSTM RNN의 마지막 (hidden)출력만을 사용했다.
+hypothesis = tf.contrib.layers.fully_connected(hypothesis[:, -1], output_data_column_cnt, activation_fn=tf.identity)
+
+
+# 손실함수로 평균제곱오차를 사용한다
+loss = tf.reduce_sum(tf.square(hypothesis - Y_rnn))
+print("loss: ", loss)
+
+# tensorboard용 loss 저장
+cost_summ = tf.summary.scalar("cost", loss)
+merged = tf.summary.merge_all()
+
+# 최적화함수로 AdamOptimizer를 사용한다
+optimizer = tf.train.AdamOptimizer(learning_rate)
+train = optimizer.minimize(loss)
+
+# RMSE(Root Mean Square Error)
+rmse = tf.sqrt(tf.reduce_mean(tf.squared_difference(targets, predictions)))
+
+train_error_summary = []  # 학습용 데이터의 오류를 중간 중간 기록한다
+test_error_summary = []  # 테스트용 데이터의 오류를 중간 중간 기록한다
+test_predict = ''  # 테스트용데이터로 예측한 결과
+validation_train_predict = ''  # validation 예측
+
+sess = tf.Session()
+
+# graph 관련 정보를 log폴더에 저장
+writer = tf.summary.FileWriter("D:/CSJ/Tensorflow/Lstm regression/logs", sess.graph)
+# tensorboard --logdir=D:/CSJ/Tensorflow/Lstm regression/logs
+sess.run(tf.global_variables_initializer())
+
+# 학습한다
+
+print('학습을 시작합니다...')
+for epoch in trange(epoch_num):
+    _, _loss = sess.run([train, loss], feed_dict={X: train_data_set, Y_rnn: train_target_set, p_keep_conv : conv_dropout_ratio})
+    if ((epoch + 1) % 100 == 0) or (epoch == epoch_num - 1):  # 100번째마다 또는 마지막 epoch인 경우
+        # 학습용데이터로 rmse오차를 구한다
+        check_output = sess.run(output_value, feed_dict={X: train_data_set, p_keep_conv : conv_dropout_ratio})
+        train_predict = sess.run(hypothesis, feed_dict={X: train_data_set, p_keep_conv : conv_dropout_ratio})
+        train_error = sess.run(rmse, feed_dict={targets: train_target_set, predictions: train_predict})
+        train_error_summary.append(train_error)
+
+        # 테스트용데이터로 rmse오차를 구한다
+        test_predict = sess.run(hypothesis, feed_dict={X: test_data_set, p_keep_conv : conv_dropout_ratio})
+        test_error = sess.run(rmse, feed_dict={targets: test_target_set, predictions: test_predict})
+        test_error_summary.append(test_error)
+
+        # # Validation 데이터로 예측 잘되는지 확인
+        # validation_train_predict = sess.run(hypothesis, feed_dict={X: v_trainX})
+
+        #
+        summary = sess.run(merged, feed_dict={X: train_data_set, Y_rnn: train_target_set, p_keep_conv : conv_dropout_ratio})
+        writer.add_summary(summary, epoch)
+
+        # 현재 오류를 출력한다
+        print("epoch: {}, train_error(A): {}, test_error(B): {}, B-A: {}".format(epoch + 1, train_error, test_error,
+                                                                                 test_error - train_error))
+
+# 결과 그래프 출력
+plt.figure(1)
+plt.plot(train_error_summary)
+plt.plot(test_error_summary)
+plt.xlabel('Epoch(x100)')
+plt.ylabel('Root Mean Square Error')
+
+'''
+plt.figure(2)
+plt.plot(v_trainY)
+plt.plot(validation_train_predict)
+plt.xlabel("Time")
+plt.ylabel("value")
+'''
+
+plt.figure(3)
+plt.plot(test_target_set)
+plt.plot(test_predict)
+plt.xlabel("Time")
+plt.ylabel("value")
 
