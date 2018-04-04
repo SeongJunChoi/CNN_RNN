@@ -26,10 +26,10 @@ import matplotlib.pyplot as plt
 import random
 
 # 그래프 사이즈 조정
-plt.rcParams["figure.figsize"] = (60,30)
-plt.rcParams['lines.linewidth'] = 2
-plt.rcParams['lines.color'] = 'r'
-plt.rcParams['axes.grid'] = True
+# plt.rcParams["figure.figsize"] = (60,30)
+# plt.rcParams['lines.linewidth'] = 2
+# plt.rcParams['lines.color'] = 'r'
+# plt.rcParams['axes.grid'] = True
 
 
 ### 사용할 고정 변수 입력
@@ -48,10 +48,10 @@ EMG_ch_num = 4
 #   Marker의 좌표 개수
 marker_axis_num = 3
 #   실제 사용할 marker 좌표 (0 : x축, 1 : y축, 2 : z축, 3 : x,y,z 모두)
-wanted_marker = 0
+wanted_marker = 3
 
 #   1개 시퀀스의 길이 (시계열데이터 입력 개수)
-seq_length = 20
+seq_length = 30
 
 #   Marker의 개수
 marker_num = 28
@@ -83,18 +83,18 @@ bias_init_type = 0
 #
 conv_layer_number = 3
 #
-conv_width_number = [5,5,5]
+conv_width_number = [1,1,1]
 #
-conv_kernel_size = [[3, 5, 7, 9, 11],
-                    [5, 7, 9, 11, 13],
-                    [7, 9, 11, 13, 15]]
+conv_kernel_size = [[3],
+                    [3],
+                    [3]]
 #
-conv_kernel_number = [[5, 10, 15, 20, 25],
-                      [10, 15, 20, 25, 30],
-                      [15, 20, 25, 30, 35]]
+conv_kernel_number = [[32],
+                      [32],
+                      [64]]
 
 #
-pooling_location = [1,3]
+pooling_location = [2,3]
 pooling_layer_number = len(pooling_location)
 #
 pooling_size = 2
@@ -103,7 +103,7 @@ pooling_stride = 2
 
 #
 fullyconnected_layer_number = 2
-#
+
 fullyconnected_layer_unit = [1024, 1024]
 
 conv_dropout_ratio = 1.0
@@ -112,13 +112,13 @@ conv_dropout_ratio = 1.0
 ## RNN 돌리기 위한 변수들
 #
 input_data_column_cnt = 4  # 입력데이터의 컬럼 개수(Variable 개수)
-output_data_column_cnt = 1 # 결과데이터의 컬럼 개수
-rnn_cell_hidden_dim = 10    # 각 셀의 (hidden)출력 크기
+output_data_column_cnt = wanted_marker  # 결과데이터의 컬럼 개수
+rnn_cell_hidden_dim = 20    # 각 셀의 (hidden)출력 크기
 forget_bias = 1.0          # 망각편향(기본값 1.0)
-num_stacked_layers = 1     # stacked LSTM layers 개수
+num_stacked_layers = 2     # stacked LSTM layers 개수
 keep_prob = 1.0            # dropout할 때 keep할 비율
-epoch_num = 100     # 에폭 횟수(학습용전체데이터를 몇 회 반복해서 학습할 것인가 입력)
-learning_rate = 0.01       # 학습률
+epoch_num =100000    # 에폭 횟수(학습용전체데이터를 몇 회 반복해서 학습할 것인가 입력)
+learning_rate = 0.2       # 학습률
 #
 
 
@@ -446,11 +446,11 @@ for epoch in trange(epoch_num):
                                                                                  test_error - train_error))
 
 # 결과 그래프 출력
-plt.figure(1)
-plt.plot(train_error_summary)
-plt.plot(test_error_summary)
-plt.xlabel('Epoch(x100)')
-plt.ylabel('Root Mean Square Error')
+# plt.figure(1)
+# plt.plot(train_error_summary)
+# plt.plot(test_error_summary)
+# plt.xlabel('Epoch(x100)')
+# plt.ylabel('Root Mean Square Error')
 
 '''
 plt.figure(2)
@@ -460,9 +460,11 @@ plt.xlabel("Time")
 plt.ylabel("value")
 '''
 
-plt.figure(3)
+plt.figure(2)
 plt.plot(test_target_set)
 plt.plot(test_predict)
 plt.xlabel("Time")
 plt.ylabel("value")
+
+plt.show()
 
